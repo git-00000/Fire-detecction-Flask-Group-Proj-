@@ -1,7 +1,6 @@
 from flask import Flask, render_template, Response, jsonify
 import cv2
 import threading
-# import playsound
 import smtplib
 import time
 from email.mime.text import MIMEText
@@ -32,9 +31,6 @@ CONFIG = {
     'mongo_collection_name': os.getenv('MONGO_COLLECTION_NAME')
 }
 
-# ========================================================
-# DATABASE & APP SETUP
-# ========================================================
 app = Flask(__name__)
 
 try:
@@ -66,22 +62,6 @@ def get_initial_alarm_state():
 # --- MODIFIED: Global Variables ---
 alarm_triggered = get_initial_alarm_state() # Set state from DB
 fire_frame_count = 0
-
-# ========================================================
-# FUNCTIONS
-# ========================================================
-# def play_alarm():
-#     # ... (This function remains unchanged)
-#     global alarm_triggered
-#     print("🔊 Alarm playing...")
-#     while alarm_triggered:
-#         try:
-#             playsound.playsound(CONFIG['alarm_sound_path'], True)
-#             time.sleep(5)
-#         except Exception as e:
-#             print(f"Error playing alarm: {e}")
-#             break
-
 
 def send_email():
     print("📧 Sending alert email...")
@@ -220,4 +200,5 @@ def status():
     })
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
