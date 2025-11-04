@@ -26,6 +26,31 @@ document.addEventListener('DOMContentLoaded', () => {
         noSignalText: document.getElementById('noSignalText'),
     };
 
+    // --- NEW: Audio Alarm Elements ---
+    const alarmSound = document.getElementById('alarm-audio-player');
+    let isAlarmPlaying = false;
+    let audioUnlocked = false; // Tracks if the user has clicked the page
+
+    // --- NEW: Function to unlock audio for the browser ---
+    // Browsers block audio until the user clicks *something*
+    const unlockAudio = () => {
+        if (!audioUnlocked) {
+            alarmSound.play().then(() => {
+                alarmSound.pause(); // Play and immediately pause to "prime" it
+                alarmSound.currentTime = 0;
+                audioUnlocked = true;
+                console.log("Audio unlocked by user interaction.");
+            }).catch(e => console.error("Audio unlock failed. User must interact with page."));
+        }
+    };
+
+    // --- NEW: Attach audio unlock to buttons ---
+    // We run this on the *first click* of any of these buttons
+    DOM_ELEMENTS.toggleFeedButton.addEventListener('click', unlockAudio, { once: true });
+    TABS.forEach(tab => {
+        tab.addEventListener('click', unlockAudio, { once: true });
+    });
+
     // --- Video Feed Toggle Logic ---
     const startFeed = () => {
         DOM_ELEMENTS.videoFeed.src = VIDEO_FEED_URL; // Set the live feed URL
@@ -88,38 +113,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     const updateDashboard = (isAlarmActive) => {
-        // Only count 'Active' detections from the log for total/recent stats
-        const activeDetectionsCount = isAlarmActive ? 1 : 0; // Use the direct API status for real-time active state
-
+        const activeDetectionsCount = isAlarmActive ? 1 : 0;
         DOM_ELEMENTS.activeDetections.textContent = activeDetectionsCount;
         DOM_ELEMENTS.totalDetectionsDash.textContent = detectionsData.length;
 
         if (detectionsData.length > 0) {
-            // Last detection time from the last logged event
             const lastDetection = detectionsData[detectionsData.length - 1];
             const [datePart, timePart] = lastDetection.time.split(' ');
             DOM_ELEMENTS.lastDetectionTime.textContent = timePart;
 
             DOM_ELEMENTS.recentAlertsContainer.innerHTML = '';
-            // Display last 5 confirmed detections
             const recentDetections = detectionsData.slice(-5).reverse();
             recentDetections.forEach(det => {
                 const alertEl = document.createElement('div');
-                // Use a standard status since only 'Active' (confirmed) events are in detectionsData now
                 alertEl.className = `p-3 rounded-lg border bg-orange-50 border-orange-200`;
                 alertEl.innerHTML = `
-                            <p class="font-semibold text-sm text-orange-800">
-                                FIRE ALERT - ${det.confidence}% Confidence
-                            </p>
-                            <p class="text-xs text-gray-600">${timePart} at ${det.gps}</p>
-                        `;
+                    <p class="font-semibold text-sm text-orange-800">
+                        FIRE ALERT - ${det.confidence}% Confidence
+                    </p>
+                    <p class="text-xs text-gray-600">${det.time.split(' ')[1]} at ${det.gps}</p>
+                `;
                 DOM_ELEMENTS.recentAlertsContainer.appendChild(alertEl);
             });
         } else {
             DOM_ELEMENTS.lastDetectionTime.textContent = 'N/A';
             DOM_ELEMENTS.recentAlertsContainer.innerHTML = '<p class="text-gray-500">No detections yet.</p>';
         }
+
+        // --- NEW: Client-side alarm logic ---
+        if (isAlarmActive && !isAlarmPlaying && audioUnlocked) {
+            console.log("🔊 Playing client-side alarm...");
+            alarmSound.play().catch(e => console.error("Audio play failed:", e));
+            isAlarmPlaying = true;
+        } else if (!isAlarmActive && isAlarmPlaying) {
+            console.log("🔇 Stopping client-side alarm...");
+            alarmSound.pause();
+            alarmSound.currentTime = 0; // Rewind the sound
+            isAlarmPlaying = false;
+        }
     };
+
 
     const updateAnalytics = () => {
         if (detectionsData.length === 0) {
@@ -218,11 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Main initialization function
     const init = () => {
         initializeCharts();
-
-        // Start polling the server for real-time status updates every 2 seconds
-        setInterval(fetchStatus, 2000);
-
-        // Initial check
+        setInterval(fetchStatus, 1000);
         fetchStatus();
 
         if (isFeedRunning) {

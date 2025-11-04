@@ -1,7 +1,7 @@
 from flask import Flask, render_template, Response, jsonify
 import cv2
 import threading
-import playsound
+# import playsound
 import smtplib
 import time
 from email.mime.text import MIMEText
@@ -70,21 +70,20 @@ fire_frame_count = 0
 # ========================================================
 # FUNCTIONS
 # ========================================================
-def play_alarm():
-    # ... (This function remains unchanged)
-    global alarm_triggered
-    print("🔊 Alarm playing...")
-    while alarm_triggered:
-        try:
-            playsound.playsound(CONFIG['alarm_sound_path'], True)
-            time.sleep(5)
-        except Exception as e:
-            print(f"Error playing alarm: {e}")
-            break
+# def play_alarm():
+#     # ... (This function remains unchanged)
+#     global alarm_triggered
+#     print("🔊 Alarm playing...")
+#     while alarm_triggered:
+#         try:
+#             playsound.playsound(CONFIG['alarm_sound_path'], True)
+#             time.sleep(5)
+#         except Exception as e:
+#             print(f"Error playing alarm: {e}")
+#             break
 
 
 def send_email():
-    # ... (This function remains unchanged)
     print("📧 Sending alert email...")
     try:
         msg = MIMEText(
@@ -113,7 +112,6 @@ def generate_frames():
         if not success:
             break
 
-        # ... (Frame flipping and gray-scaling is unchanged) ...
         flip_code = CONFIG.get('camera_flip_code', None)
         if flip_code is not None:
             frame = cv2.flip(frame, flip_code)
@@ -138,7 +136,6 @@ def generate_frames():
                 print("\n🚨 Fire confirmed!")
                 confidence_val = min(100, (fire_frame_count / CONFIG['consecutive_frames_threshold']) * 33 + 67)
                 
-                # --- NEW: Create log entry to save in DB ---
                 now = datetime.datetime.now()
                 log_entry = {
                     "time_obj": now, 
@@ -154,8 +151,7 @@ def generate_frames():
                 except Exception as e:
                     print(f"❌ Error saving to MongoDB: {e}")
 
-                # --- (Threads start as normal) ---
-                threading.Thread(target=play_alarm, daemon=True).start()
+                # threading.Thread(target=play_alarm, daemon=True).start()
                 threading.Thread(target=send_email, daemon=True).start()
         else:
             if alarm_triggered:
@@ -170,7 +166,7 @@ def generate_frames():
                     "confidence": 0,
                     "gps": "N/A"
                 }
-                # --- NEW: Insert into MongoDB ---
+
                 try:
                     detections_collection.insert_one(log_entry)
                     print("💾 'Cleared' event saved to database.")
@@ -180,7 +176,6 @@ def generate_frames():
             fire_frame_count = 0
             alarm_triggered = False
 
-        # ... (Streaming logic remains unchanged) ...
         status_text = f"Fire Frames: {fire_frame_count}/{CONFIG['consecutive_frames_threshold']}"
         color = (0, 255, 0) if fire_frame_count < CONFIG['consecutive_frames_threshold'] else (0, 0, 255)
         cv2.putText(frame, status_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
@@ -206,17 +201,12 @@ def video_feed():
 
 @app.route('/api/status')
 def status():
-    # --- NEW: Read all logs from the database ---
     try:
-        # Find all documents and sort by time
         logs_cursor = detections_collection.find().sort("time_obj", DESCENDING)
         
         logs_list = []
         for log in logs_cursor:
-            # --- IMPORTANT ---
-            # jsonify can't handle MongoDB's 'ObjectId', so we convert it to a string.
             log['_id'] = str(log['_id'])
-            # We can also remove the 'time_obj' field so it's not sent to the frontend
             log.pop('time_obj', None)
             logs_list.append(log)
             
@@ -224,7 +214,6 @@ def status():
         print(f"❌ Error fetching logs from MongoDB: {e}")
         logs_list = []
 
-    # The JSON structure sent to the frontend is IDENTICAL to before
     return jsonify({
         "alarm_active": alarm_triggered,
         "full_log": logs_list
