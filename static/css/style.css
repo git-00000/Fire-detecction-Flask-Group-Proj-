@@ -1,0 +1,33 @@
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #FDFBF7;
+    /* Warm Neutral Background */
+    color: #3d3d3d;
+}
+
+.nav-tab {
+    transition: all 0.2s ease-in-out;
+    border-bottom: 3px solid transparent;
+}
+
+.nav-tab.active {
+    border-bottom-color: #16a34a;
+    /* Green Accent */
+    color: #16a34a;
+}
+
+.chart-container {
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+    height: 300px;
+    max-height: 400px;
+}
+
+@media (min-width: 768px) {
+    .chart-container {
+        height: 350px;
+    }
+}
